@@ -1,4 +1,5 @@
 import os.path
+import re
 import datetime
 import base64
 import pandas as pd
@@ -30,6 +31,19 @@ def authenticate_gmail():
             token.write(creds.to_json())
     return creds
 
+def extract_asin(subject_line):
+    # Split the subject line by ':' or ','
+    parts = re.split('[:,]', subject_line)
+    
+    # Extract the first part
+    asin = parts[0].strip()
+    
+    # Check if the ASIN contains only numbers
+    if asin.isdigit():
+        return asin[-10:]
+    else:
+        return None
+
 def get_emails_with_subject(service, subject, days):
     query = f'newer_than:{days}d'
     results = service.users().messages().list(userId='me', q=query).execute()
@@ -49,16 +63,17 @@ def get_emails_with_subject(service, subject, days):
                 if part['mimeType'] == 'text/html':
                     data = part['body']['data']
                     html = base64.urlsafe_b64decode(data.encode('UTF-8')).decode('utf-8')
-                    asin = subject_line.split(':')[0] 
-                    emails.append({
-                        'ASIN': asin,
-                        'amz_link': f'https://www.amazon.com/dp/{asin}',
-                        'Subject': subject_line,
-                        'From': sender,
-                        'Date': date,
-                        'Snippet': snippet,
-                        'Html': html,
-                    })
+                    asin = extract_asin(subject_line)
+                    if asin:
+                        emails.append({
+                            'ASIN': asin,
+                            'amz_link': f'https://www.amazon.com/dp/{asin}',
+                            'Subject': subject_line,
+                            'From': sender,
+                            'Date': date,
+                            'Snippet': snippet,
+                            'Html': html,
+                        })
     return emails
 
 def parse_html(html):
@@ -75,7 +90,7 @@ def save_to_csv(data, filename='filtered_emails.csv'):
     if not df.empty:
         df = df.sort_values(by='Date')
         # Ensure the headers are in the specified order
-        headers = ['ASIN', 'Date', 'ebay_link', 'Ebay: Lowest Pre-Owned Price', 'Ebay: Lowest New Price', 'amz_link', 'Keepa New Price (FBA)', 'Keepa Used Price (FBA)']
+        headers = ['ASIN', 'Date', 'ebay_link', 'Ebay: Lowest Pre-Owned Price', 'Ebay: Lowest New Price', 'amz_link', 'Keepa New Price', 'Keepa New Is FBA','Keepa Used Price','Keepa Used Is FBA']
         df = df[headers]
         df.to_csv(filename, index=False)
     print(df)
@@ -114,30 +129,33 @@ def scrape_ebay_page(url):
     return lowest_pre_owned, lowest_new
 
 def get_keepa_prices(asins):
-    api = keepa.Keepa(os.environ.get('keepa_api'))
-    products = api.query(asins, only_live_offers=1, days=1,offers=100)
+    api = keepa.Keepa(accesskey=os.environ.get('keepa_api'),timeout=300)
+    products = api.query(asins, only_live_offers=1, days=1,stats=180,buybox=1) # offers=20
     prices = {}
 
     for product in products:
         asin = product['asin']
-        fba_new_prices = []
-        fba_used_prices = []
+
+        stats = product.get('stats',{})
+        buybox_new_price = stats.get('buyBoxPrice', None)
+        buybox_new_shipping = stats.get('buyBoxShipping', None)
+        buybox_new_is_fba = stats.get('buyBoxIsFBA', None)
         
-        for offer in product['offers']:
-            price_cents = offer['offerCSV'][1]
-            price = price_cents / 100
-            if offer['isFBA']:
-                if offer['condition'] == 1:  # 1 is for New condition
-                    fba_new_prices.append(price)
-                elif offer['condition'] != 1:  # 2 is for Used condition
-                    fba_used_prices.append(price)
+        buybox_used_price = stats.get('buyBoxUsedPrice', None)
+        buybox_used_shipping = stats.get('buyBoxUsedShipping', None)
+        buybox_used_is_fba = stats.get('buyBoxUsedIsFBA', None)
         
-        min_new_price = min(fba_new_prices) if fba_new_prices else None
-        min_used_price = min(fba_used_prices) if fba_used_prices else None
+        
+        new_price = float(buybox_new_price + buybox_new_shipping)/100 if buybox_new_price else None
+        used_price = float(buybox_used_price + buybox_used_shipping)/100 if buybox_used_price else None
         
         prices[asin] = {
-            'Keepa New Price (FBA)': min_new_price,
-            'Keepa Used Price (FBA)': min_used_price
+            'Keepa New Price': new_price,
+            'Max New Price': new_price * .6,
+            'Keepa New Is FBA': buybox_new_is_fba,
+            'Keepa Used Price': used_price,
+            'Max Used Price': used_price * .6,
+            'Keepa Used Is FBA': buybox_used_is_fba,
         }
     return prices
 
@@ -145,10 +163,9 @@ def main():
     creds = authenticate_gmail()
     service = build('gmail', 'v1', credentials=creds)
     
-    emails = get_emails_with_subject(service, 'NEW!', 7)
+    emails = get_emails_with_subject(service, 'NEW!', 1)
 
-    asins = [email['ASIN'] for email in emails]
-
+    asins = [email['ASIN'] for email in emails ]
     keepa_prices = get_keepa_prices(asins)
     filtered_emails = []
 
@@ -166,9 +183,10 @@ def main():
         email.update(keepa_price)
 
         # Filter condition: eBay price must be half of the FBA price
-        if (lowest_pre_owned and keepa_price.get('Keepa Used Price (FBA)') and lowest_pre_owned <= keepa_price.get('Keepa Used Price (FBA)') *.6) or \
-           (lowest_new and keepa_price.get('Keepa New Price (FBA)') and lowest_new <= keepa_price.get('Keepa New Price (FBA)') * .6):
+        if (lowest_pre_owned and keepa_price.get('Keepa Used Price') and lowest_pre_owned <= keepa_price.get('Keepa Used Price') *.6) or \
+           (lowest_new and keepa_price.get('Keepa New Price') and lowest_new <= keepa_price.get('Keepa New Price') * .6):
             filtered_emails.append(email)
+
 
     save_to_csv(filtered_emails)
 
