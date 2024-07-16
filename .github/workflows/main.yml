@@ -54,4 +54,4 @@ jobs:
       run: sam package --template-file .aws-sam/build/template.yaml --s3-bucket ${{ secrets.S3_BUCKET }} --output-template-file sam-packaged.yaml
     
     - name: SAM deploy us-east-1
-      run: sam deploy --stack-name ${{ env.STACK_NAME }} --parameter-overrides  "STAGE=${{ env.STAGE }}" "KEEPAAPI=${{ secrets.KEEPA_API }}" "TELEGRAMTOKEN=${{ secrets.TELEGRAM_TOKEN }}" "S3BUCKET=${{ secrets.S3_BUCKET }}" --template-file sam-packaged.yaml --s3-bucket amazon-fba-backend --region us-east-1 --capabilities CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM CAPABILITY_IAM --no-confirm-changeset --no-fail-on-empty-changeset
+      run: sam deploy --stack-name ${{ env.STACK_NAME }} --parameter-overrides  "STAGE=${{ env.STAGE }}" "KEEPAAPI=${{ secrets.KEEPA_API }}" "TELEGRAMTOKEN=${{ secrets.TELEGRAM_TOKEN }}" "S3BUCKET=${{ secrets.S3_BUCKET }}" --template-file sam-packaged.yaml --s3-bucket ${{ secrets.S3_BUCKET }} --region us-east-1 --capabilities CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM CAPABILITY_IAM --no-confirm-changeset --no-fail-on-empty-changeset
