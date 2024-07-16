@@ -48,9 +48,9 @@ def authenticate_gmail():
             bucket_name = os.getenv('secrets_bucket')
             key = 'token.json'
             credentials_json = get_secret_from_s3(bucket_name, key)
-            with open('token.json', 'w') as creds_file:
+            with open('/tmp/token.json', 'w') as creds_file:
                 creds_file.write(credentials_json)
-            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+            creds = Credentials.from_authorized_user_file('/tmp/token.json', SCOPES)
             if not creds.valid:
                 creds.refresh(Request())
                 upload_secret_to_s3(bucket_name, key, creds.to_json())
