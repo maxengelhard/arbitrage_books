@@ -47,17 +47,26 @@ def lambda_handler(event, context):
             start_response = send_telegram_message(chat_id, "The eBay data gathering process has started.")
             start_message_id = start_response['result']['message_id']
 
-            client = boto3.client('lambda')
-            function_name = os.getenv('gather_data_function')
-            
-            response = client.invoke(
-                FunctionName=function_name,
-                InvocationType='Event'  # Asynchronous invocation
-            )
+            try:
+                client = boto3.client('lambda')
+                function_name = os.getenv('gather_data_function')
+                
+                response = client.invoke(
+                    FunctionName=function_name,
+                    InvocationType='Event'  # Asynchronous invocation
+                )
 
-            delete_telegram_message(chat_id, start_message_id)
-            send_telegram_message(chat_id, "The eBay data gathering process is complete.")
-    
+                # Check if invocation was successful
+                if response['StatusCode'] != 202:
+                    raise Exception(f"Failed to invoke gather_data_function: {response}")
+
+                delete_telegram_message(chat_id, start_message_id)
+                send_telegram_message(chat_id, "The eBay data gathering process is complete.")
+            except Exception as e:
+                # Log the exception and notify via Telegram
+                print(f"Error invoking gather_data_function: {e}")
+                send_telegram_message(chat_id, "An error occurred while starting the eBay data gathering process.")
+
     elif 'callback_query' in body:
         callback_query = body['callback_query']
         if 'data' in callback_query and callback_query['data'].startswith('delete_'):
