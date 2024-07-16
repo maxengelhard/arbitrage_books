@@ -4,7 +4,6 @@ import re
 import datetime
 import json
 import base64
-import pandas as pd
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -12,7 +11,7 @@ from googleapiclient.discovery import build
 from bs4 import BeautifulSoup
 import requests
 import keepa
-import prettytable as pt
+from lambda_decorators import load_json_body
 # from telegram import ParseMode
 from dotenv import load_dotenv
 load_dotenv()
@@ -166,9 +165,10 @@ def delete_telegram_message(chat_id, message_id):
     response = requests.post(url, data=payload)
     return response.json()
 
+@load_json_body
 def lambda_handler(event, context):
     print(event)
-    body = json.loads(event['body'])
+    body = event['body']
     
     if 'message' in body:
         message = body['message']

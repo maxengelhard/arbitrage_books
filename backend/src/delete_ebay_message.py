@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+from lambda_decorators import load_json_body
 
 def delete_telegram_message(chat_id, message_id):
     token = os.getenv('telegram_token')
@@ -12,8 +13,9 @@ def delete_telegram_message(chat_id, message_id):
     response = requests.post(url, data=payload)
     return response.json()
 
+@load_json_body
 def lambda_handler(event, context):
-    body = json.loads(event['body'])
+    body = event['body']
     
     if 'callback_query' in body:
         callback_query = body['callback_query']

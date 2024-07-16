@@ -104,7 +104,7 @@ Resources:
   DeleteMessageHandler:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/telegram/
+      CodeUri: src/
       FunctionName: !Sub "telegram_delete_handler_${STAGE}"
       Handler: delete_ebay_message.lambda_handler
       Runtime: python3.11
