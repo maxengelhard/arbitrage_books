@@ -12,21 +12,12 @@ Parameters:
     Type: String
   KEEPAAPI:
     Type: String
-  # DBHOST:
-  #   Type: String
-  # DBNAME:
-  #   Type: String
-  # DBUSERNAME:
-  #   Type: String
-  # DBPASSWORD:
-  #   Type: String
   TELEGRAMTOKEN:
     Type: String
   TELEGRAMCHATID:
     Type: String
   S3BUCKET:
     Type: String
-  
 
 Conditions:
   IsProd: !Equals [ !Ref STAGE, prd ]
@@ -36,54 +27,67 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
-      FunctionName: !Sub "ebay_fba_${STAGE}"
+      FunctionName: !Sub "ebay_fba_gather_${STAGE}"
       Handler: ebay_emails.lambda_handler
       Runtime: python3.11
-      Timeout: 900
+      Timeout: 300
       Environment:
         Variables:
-          # db_host: !Ref DBHOST
-          # db_name: !Ref DBNAME
-          # db_user: !Ref DBUSERNAME
-          # db_password: !Ref DBPASSWORD
           keepa_api: !Ref KEEPAAPI
-          telegram_token: !Ref TELEGRAMTOKEN
-          telegram_chat_id: !Ref TELEGRAMCHATID
           secrets_bucket: !Ref S3BUCKET
+          SQS_QUEUE_URL: !GetAtt SQSQueue.QueueUrl
       Architectures: 
         - x86_64
-      Description: Script to run a check on ebay emails vs keepa prices
-      # Events:
-      #   MidnightTrigger:
-      #     Type: Schedule
-      #     Properties:
-      #       Schedule: !If
-      #         - IsProd
-      #         - 'cron(0/5 * * * ? *)'  # Every 10 minutes in production
-      #         - 'cron(0 * * * ? *)'  # Once an hour in development
       Policies:
-        Statement:
-          - Effect: Allow
-            Action: 
-              - logs:CreateLogGroup
-            Resource: 
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
-          - Effect: Allow
+        - Statement:
+            Effect: Allow
             Action:
+              - logs:CreateLogGroup
               - logs:CreateLogStream
               - logs:PutLogEvents
-            Resource:
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
-          - Effect: Allow
-            Action:
               - s3:ListBucket
-            Resource:
-              - !Sub "arn:aws:s3:::${S3BUCKET}"
-          - Effect: Allow
-            Action:
               - s3:GetObject
               - s3:PutObject
-            Resource:
-              - !Sub "arn:aws:s3:::${S3BUCKET}/token.json"
-    
-  
+              - sqs:SendMessage
+            Resource: 
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+              - !Sub "arn:aws:s3:::${S3BUCKET}"
+              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:*"
+
+  ProcessEbay:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      FunctionName: !Sub "ebay_fba_process_${STAGE}"
+      Handler: process_ebay.lambda_handler
+      Runtime: python3.11
+      Timeout: 60
+      Environment:
+        Variables:
+          telegram_token: !Ref TELEGRAMTOKEN
+          telegram_chat_id: !Ref TELEGRAMCHATID
+          SQS_QUEUE_URL: !GetAtt SQSQueue.QueueUrl
+      Architectures: 
+        - x86_64
+      Events:
+        ProcessEbayQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SQSQueue.QueueArn
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+            Resource: 
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:*"
+
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "ebay_fba_queue_${STAGE}"
