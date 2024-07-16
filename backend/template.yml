@@ -91,3 +91,4 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "ebay_fba_queue_${STAGE}"
+      VisibilityTimeout: 60
