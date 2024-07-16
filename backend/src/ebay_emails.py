@@ -174,8 +174,8 @@ def lambda_handler(event, context):
     
     if 'message' in body:
         message = body['message']
-        print(message)
         chat_id = message['chat']['id']
+        print('chat_id',chat_id)
         text = message.get('text', '')
 
         if text == '/ebay':
