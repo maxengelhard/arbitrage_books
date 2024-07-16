@@ -46,7 +46,7 @@ def authenticate_gmail():
                 token.write(creds.to_json())
         else: # coming from lambda
             bucket_name = os.getenv('secrets_bucket')
-            key = 'credentials.json'
+            key = 'token.json'
             credentials_json = get_secret_from_s3(bucket_name, key)
             with open('token.json', 'w') as creds_file:
                 creds_file.write(credentials_json)
