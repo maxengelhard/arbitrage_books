@@ -2,6 +2,7 @@ import os.path
 import boto3
 import re
 import datetime
+import json
 import base64
 import pandas as pd
 from google.oauth2.credentials import Credentials
@@ -11,6 +12,8 @@ from googleapiclient.discovery import build
 from bs4 import BeautifulSoup
 import requests
 import keepa
+import prettytable as pt
+# from telegram import ParseMode
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -112,7 +115,7 @@ def save_to_csv(data, filename='filtered_emails.csv'):
     if not df.empty:
         df = df.sort_values(by='Date')
         # Ensure the headers are in the specified order
-        headers = ['ASIN', 'Date', 'ebay_link', 'amz_link', 'Ebay: Lowest Pre-Owned Price','Max Used Price','Keepa Used Price','Keepa Used Is FBA', 'Ebay: Lowest New Price' ,'Max New Price', 'Keepa New Price', 'Keepa New Is FBA']
+        headers = ['Title','ASIN', 'Date', 'ebay_link', 'amz_link', 'Ebay: Lowest Pre-Owned Price','Max Used Price','Keepa Used Price','Keepa Used Is FBA', 'Ebay: Lowest New Price' ,'Max New Price', 'Keepa New Price', 'Keepa New Is FBA']
         df = df[headers]
         df.to_csv(filename, index=False)
     print(df)
@@ -145,8 +148,8 @@ def scrape_ebay_page(url):
             except ValueError:
                 continue
 
-    lowest_pre_owned = min(pre_owned_prices) if pre_owned_prices else None
-    lowest_new = min(new_prices) if new_prices else None
+    lowest_pre_owned = round(min(pre_owned_prices),2) if pre_owned_prices else None
+    lowest_new = round(min(new_prices),2) if new_prices else None
 
     return lowest_pre_owned, lowest_new
 
@@ -157,6 +160,7 @@ def get_keepa_prices(asins):
 
     for product in products:
         asin = product['asin']
+        title = product['title']
 
         stats = product.get('stats',{})
         buybox_new_price = stats.get('buyBoxPrice', None)
@@ -171,10 +175,11 @@ def get_keepa_prices(asins):
         new_price = float(buybox_new_price + buybox_new_shipping)/100 if buybox_new_price else None
         used_price = float(buybox_used_price + buybox_used_shipping)/100 if buybox_used_price else None
 
-        max_new_price = new_price * .6 if new_price else None
-        max_used_price = used_price * .6 if used_price else None
+        max_new_price = round(new_price * .6,2) if new_price else None
+        max_used_price = round(used_price * .6,2) if used_price else None
         
         prices[asin] = {
+            'Title': title,
             'Keepa New Price': new_price,
             'Max New Price': max_new_price,
             'Keepa New Is FBA': buybox_new_is_fba,
@@ -183,6 +188,62 @@ def get_keepa_prices(asins):
             'Keepa Used Is FBA': buybox_used_is_fba,
         }
     return prices
+
+
+def send_telegram_message(message, inline_buttons):
+    token = os.getenv('telegram_token')
+    chat_id = os.getenv('telegram_chat_id')
+    url = f'https://api.telegram.org/bot{token}/sendMessage'
+    payload = {
+        'chat_id': chat_id,
+        'text': message,
+        'parse_mode': 'HTML',
+        'reply_markup': json.dumps({
+            'inline_keyboard': inline_buttons
+        })
+    }
+    response = requests.post(url, data=payload)
+    return response.json()
+
+def send_telegram_messages(data):
+    for email in data:
+        table = pt.PrettyTable()
+        table.align = 'l'
+        table.field_names = ['Item', 'Used', 'New']
+
+        used_col = email['Ebay: Lowest Pre-Owned Price'] is not None and email['Max Used Price'] is not None and email['Ebay: Lowest Pre-Owned Price'] <= email['Max Used Price']
+        new_col = email['Ebay: Lowest New Price'] is not None and email['Max New Price'] is not None and email['Ebay: Lowest New Price'] <= email['Max New Price']
+
+        if used_col:
+            table.add_row(['eBay', f"${email['Ebay: Lowest Pre-Owned Price']}", ''])
+            table.add_row(['Max Price', f"${email['Max Used Price']}", ''])
+            table.add_row(['Amazon', f"${email['Keepa Used Price']}", ''])
+            table.add_row(['FBA', f"{email['Keepa Used Is FBA']}", ''])
+
+        if new_col:
+            if not used_col:
+                table.add_row(['eBay', '', f"${email['Ebay: Lowest New Price']}"])
+                table.add_row(['Max Price', '', f"${email['Max New Price']}"])
+                table.add_row(['Amazon', '', f"${email['Keepa New Price']}"])
+                table.add_row(['FBA', '', f"{email['Keepa New Is FBA']}"])
+            else:
+                table.field_names = ['Item', 'Used', 'New']
+                table._rows[0][2] = f"${email['Ebay: Lowest New Price']}"
+                table._rows[1][2] = f"${email['Max New Price']}"
+                table._rows[2][2] = f"${email['Keepa New Price']}"
+                table._rows[3][2] = f"{email['Keepa New Is FBA']}"
+
+        message = f"""
+        <b>Title:</b> {email['Title']}
+        <pre>{table}</pre>
+        """
+        inline_buttons = [
+            [
+                {"text": "View on eBay", "url": email['ebay_link']},
+                {"text": "View on Amazon", "url": email['amz_link']}
+            ]
+        ]
+        send_telegram_message(message, inline_buttons)
 
 def lambda_handler(event,context):
     creds = authenticate_gmail()
@@ -214,6 +275,7 @@ def lambda_handler(event,context):
 
 
     save_to_csv(filtered_emails)
+    send_telegram_messages(filtered_emails)
 
 if __name__ == '__main__':
     lambda_handler({},{})

@@ -22,6 +22,8 @@ Parameters:
   #   Type: String
   TELEGRAMTOKEN:
     Type: String
+  TELEGRAMCHATID:
+    Type: String
   S3BUCKET:
     Type: String
   
@@ -45,6 +47,7 @@ Resources:
           # db_password: !Ref DBPASSWORD
           keepa_api: !Ref KEEPAAPI
           telegram_token: !Ref TELEGRAMTOKEN
+          telegram_chat_id: !Ref TELEGRAMCHATID
           secrets_bucket: !Ref S3BUCKET
       Architectures: 
         - x86_64
