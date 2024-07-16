@@ -1,4 +1,5 @@
 import os.path
+import boto3
 import re
 import datetime
 import base64
@@ -16,6 +17,15 @@ load_dotenv()
 # If modifying these SCOPES, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
+def get_secret_from_s3(bucket_name, key):
+    s3 = boto3.client('s3')
+    response = s3.get_object(Bucket=bucket_name, Key=key)
+    return response['Body'].read().decode('utf-8')
+
+def upload_secret_to_s3(bucket_name, key, data):
+    s3 = boto3.client('s3')
+    s3.put_object(Bucket=bucket_name, Key=key, Body=data)
+
 def authenticate_gmail():
     creds = None
     if os.path.exists('token.json'):
@@ -23,12 +33,24 @@ def authenticate_gmail():
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
-        else:
+            with open('token.json', 'w') as token:
+                token.write(creds.to_json())
+        elif os.path.exists('client_secret.json'):
             flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+                'client_secret.json', SCOPES)
             creds = flow.run_local_server(port=0)
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+            with open('token.json', 'w') as token:
+                token.write(creds.to_json())
+        else: # coming from lambda
+            bucket_name = os.getenv('secrets_bucket')
+            key = 'credentials.json'
+            credentials_json = get_secret_from_s3(bucket_name, key)
+            with open('token.json', 'w') as creds_file:
+                creds_file.write(credentials_json)
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+            if not creds.valid:
+                creds.refresh(Request())
+                upload_secret_to_s3(bucket_name, key, creds.to_json())
     return creds
 
 def extract_asin(subject_line):
@@ -90,7 +112,7 @@ def save_to_csv(data, filename='filtered_emails.csv'):
     if not df.empty:
         df = df.sort_values(by='Date')
         # Ensure the headers are in the specified order
-        headers = ['ASIN', 'Date', 'ebay_link', 'Ebay: Lowest Pre-Owned Price', 'Ebay: Lowest New Price', 'amz_link', 'Keepa New Price', 'Keepa New Is FBA','Keepa Used Price','Keepa Used Is FBA']
+        headers = ['ASIN', 'Date', 'ebay_link', 'amz_link', 'Ebay: Lowest Pre-Owned Price','Max Used Price','Keepa Used Price','Keepa Used Is FBA', 'Ebay: Lowest New Price' ,'Max New Price', 'Keepa New Price', 'Keepa New Is FBA']
         df = df[headers]
         df.to_csv(filename, index=False)
     print(df)
@@ -129,7 +151,7 @@ def scrape_ebay_page(url):
     return lowest_pre_owned, lowest_new
 
 def get_keepa_prices(asins):
-    api = keepa.Keepa(accesskey=os.environ.get('keepa_api'),timeout=300)
+    api = keepa.Keepa(accesskey=os.getenv('keepa_api'),timeout=300)
     products = api.query(asins, only_live_offers=1, days=1,stats=180,buybox=1) # offers=20
     prices = {}
 
@@ -159,7 +181,7 @@ def get_keepa_prices(asins):
         }
     return prices
 
-def main():
+def lambda_handler(event,context):
     creds = authenticate_gmail()
     service = build('gmail', 'v1', credentials=creds)
     
@@ -183,8 +205,8 @@ def main():
         email.update(keepa_price)
 
         # Filter condition: eBay price must be half of the FBA price
-        if (lowest_pre_owned and keepa_price.get('Keepa Used Price') and lowest_pre_owned <= keepa_price.get('Keepa Used Price') *.6) or \
-           (lowest_new and keepa_price.get('Keepa New Price') and lowest_new <= keepa_price.get('Keepa New Price') * .6):
+        if (lowest_pre_owned and keepa_price.get('Keepa Used Price') and lowest_pre_owned <= keepa_price.get('Max Used Price')) or \
+           (lowest_new and keepa_price.get('Keepa New Price') and lowest_new <= keepa_price.get('Max New Price')):
             filtered_emails.append(email)
 
 

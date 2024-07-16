@@ -1,0 +1,57 @@
+name: Upload functions
+
+on:
+  push:
+    branches: [ main  , dev ]
+
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      STACK_NAME: 'amazon-fba-prd' # default stack
+      STAGE: prd
+
+    steps:
+    - uses: actions/checkout@main
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        architecture: 'x64'
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-region: us-east-1
+        role-to-assume: ${{ secrets.OPENID }}
+        role-session-name: MySessionName
+    
+
+    - name: Set ENV's based on branch
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+          echo "STACK_NAME=amazon-fba-backend-dev" >> $GITHUB_ENV
+          echo "STAGE=dev" >> $GITHUB_ENV
+        fi
+
+#### SERVER / BACKEND #####    
+    - name: Setup AWS SAM CLI
+      uses: aws-actions/setup-sam@v2
+      with:
+          use-installer: true
+      
+    - name: SAM build us-east-1
+      run: sam build --template './backend/template.yml'
+    
+    - name: SAM Package
+      run: sam package --template-file .aws-sam/build/template.yaml --s3-bucket amazon-fba-backend --output-template-file sam-packaged.yaml
+    
+    - name: SAM deploy us-east-1
+      run: sam deploy --stack-name ${{ env.STACK_NAME }} --parameter-overrides  "STAGE=${{ env.STAGE }}" "KEEPAAPI=${{ secrets.KEEPA_API }}" "TELEGRAMTOKEN=${{ secrets.TELEGRAM_TOKEN }}" "S3BUCKET=${{ secrets.S3_BUCKET }}" --template-file sam-packaged.yaml --s3-bucket amazon-fba-backend --region us-east-1 --capabilities CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM CAPABILITY_IAM --no-confirm-changeset --no-fail-on-empty-changeset

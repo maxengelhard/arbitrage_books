@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "SAM template for backend and related functions"
+
+Globals:
+  Function:
+    Timeout: 60
+    Tracing: PassThrough
+
+Parameters:
+  STAGE:
+    Type: String
+  KEEPAAPI:
+    Type: String
+  # DBHOST:
+  #   Type: String
+  # DBNAME:
+  #   Type: String
+  # DBUSERNAME:
+  #   Type: String
+  # DBPASSWORD:
+  #   Type: String
+  TELEGRAMTOKEN:
+    Type: String
+  S3BUCKET:
+    Type: String
+  
+
+Conditions:
+  IsProd: !Equals [ !Ref STAGE, prd ]
+
+Resources:
+  GatherData:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      FunctionName: !Sub "ebay_fba_${STAGE}"
+      Handler: ebay_emails.lambda_handler
+      Runtime: python3.11
+      Environment:
+        Variables:
+          # db_host: !Ref DBHOST
+          # db_name: !Ref DBNAME
+          # db_user: !Ref DBUSERNAME
+          # db_password: !Ref DBPASSWORD
+          keepa_api: !Ref KEEPAAPI
+          telegram_token: !Ref TELEGRAMTOKEN
+          secrets_bucket: !Ref S3BUCKET
+      Architectures: 
+        - x86_64
+      Description: Script to run a check on ebay emails vs keepa prices
+      # Events:
+      #   MidnightTrigger:
+      #     Type: Schedule
+      #     Properties:
+      #       Schedule: !If
+      #         - IsProd
+      #         - 'cron(0/5 * * * ? *)'  # Every 10 minutes in production
+      #         - 'cron(0 * * * ? *)'  # Once an hour in development
+      Policies:
+        Statement:
+          - Effect: Allow
+            Action: 
+              - logs:CreateLogGroup
+            Resource: 
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !Sub "arn:aws:s3:::${S3BUCKET}"
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource:
+              - !Sub "arn:aws:s3:::${S3BUCKET}/token.json"
+    
+  
