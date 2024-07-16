@@ -38,6 +38,12 @@ Resources:
           SQS_QUEUE_URL: !GetAtt SQSQueue.QueueUrl
       Architectures: 
         - x86_64
+      Events:
+        GatherDataApi:
+          Type: Api
+          Properties:
+            Path: /ebay
+            Method: post
       Policies:
         - Statement:
             Effect: Allow
