@@ -167,6 +167,7 @@ def delete_telegram_message(chat_id, message_id):
     return response.json()
 
 def lambda_handler(event, context):
+    print(event)
     body = json.loads(event['body'])
     
     if 'message' in body:
