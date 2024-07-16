@@ -35,6 +35,7 @@ Resources:
         Variables:
           keepa_api: !Ref KEEPAAPI
           secrets_bucket: !Ref S3BUCKET
+          telegram_token: !Ref TELEGRAMTOKEN
           SQS_QUEUE_URL: !GetAtt SQSQueue.QueueUrl
       Architectures: 
         - x86_64
@@ -72,7 +73,6 @@ Resources:
       Environment:
         Variables:
           telegram_token: !Ref TELEGRAMTOKEN
-          telegram_chat_id: !Ref TELEGRAMCHATID
           SQS_QUEUE_URL: !GetAtt SQSQueue.QueueUrl
       Architectures: 
         - x86_64

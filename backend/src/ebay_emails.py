@@ -173,6 +173,7 @@ def lambda_handler(event, context):
     
     if 'message' in body:
         message = body['message']
+        print(message)
         chat_id = message['chat']['id']
         text = message.get('text', '')
 
@@ -198,6 +199,7 @@ def lambda_handler(event, context):
                 if link:
                     keepa_price = keepa_prices.get(email['ASIN'], {})
                     email.update(keepa_price)
+                    email['chat_id'] = chat_id
                     sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(email))
             
             delete_telegram_message(chat_id, start_message_id)

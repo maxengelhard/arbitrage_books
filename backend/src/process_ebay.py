@@ -38,9 +38,8 @@ def scrape_ebay_page(url):
 
     return lowest_pre_owned, lowest_new
 
-def send_telegram_message(message, inline_buttons):
+def send_telegram_message(message, inline_buttons,chat_id):
     token = os.getenv('telegram_token')
-    chat_id = os.getenv('telegram_chat_id')
     url = f'https://api.telegram.org/bot{token}/sendMessage'
     payload = {
         'chat_id': chat_id,
@@ -60,6 +59,7 @@ def lambda_handler(event, context):
     for record in event['Records']:
         email = json.loads(record['body'])
         link = email['ebay_link']
+        chat_id = email['chat_id']
         if link:
             lowest_pre_owned, lowest_new = scrape_ebay_page(link)
             email['Ebay: Lowest Pre-Owned Price'] = lowest_pre_owned
@@ -104,7 +104,7 @@ def lambda_handler(event, context):
                         {"text": "Delete", "callback_data": f"delete_{email['ASIN']}"}
                     ]
                 ]
-                send_telegram_message(message, inline_buttons)
+                send_telegram_message(message, inline_buttons,chat_id)
             sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=record['receiptHandle'])
 
     return {
