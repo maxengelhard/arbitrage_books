@@ -153,7 +153,8 @@ def send_telegram_message(chat_id, text):
         'chat_id': chat_id,
         'text': text
     }
-    requests.post(url, data=payload)
+    response = requests.post(url, data=payload)
+    return response.json()
 
 def delete_telegram_message(chat_id, message_id):
     token = os.getenv('telegram_token')

@@ -15,6 +15,7 @@ def delete_telegram_message(chat_id, message_id):
 
 @load_json_body
 def lambda_handler(event, context):
+    print(event)
     body = event['body']
     
     if 'callback_query' in body:
