@@ -170,13 +170,16 @@ def get_keepa_prices(asins):
         
         new_price = float(buybox_new_price + buybox_new_shipping)/100 if buybox_new_price else None
         used_price = float(buybox_used_price + buybox_used_shipping)/100 if buybox_used_price else None
+
+        max_new_price = new_price * .6 if new_price else None
+        max_used_price = used_price * .6 if used_price else None
         
         prices[asin] = {
             'Keepa New Price': new_price,
-            'Max New Price': new_price * .6,
+            'Max New Price': max_new_price,
             'Keepa New Is FBA': buybox_new_is_fba,
             'Keepa Used Price': used_price,
-            'Max Used Price': used_price * .6,
+            'Max Used Price': max_used_price,
             'Keepa Used Is FBA': buybox_used_is_fba,
         }
     return prices
@@ -213,4 +216,4 @@ def lambda_handler(event,context):
     save_to_csv(filtered_emails)
 
 if __name__ == '__main__':
-    main()
+    lambda_handler({},{})
