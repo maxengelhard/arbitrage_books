@@ -39,7 +39,7 @@ Resources:
       FunctionName: !Sub "ebay_fba_${STAGE}"
       Handler: ebay_emails.lambda_handler
       Runtime: python3.11
-      Timeout: 300
+      Timeout: 900
       Environment:
         Variables:
           # db_host: !Ref DBHOST
