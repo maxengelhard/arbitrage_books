@@ -246,21 +246,27 @@ def send_telegram_messages(data):
         send_telegram_message(message, inline_buttons)
 
 def lambda_handler(event,context):
+    print('starting gmail authentication')
     creds = authenticate_gmail()
+    print('authenticated with gmail')
     service = build('gmail', 'v1', credentials=creds)
-    
+    print('getting emails')
     emails = get_emails_with_subject(service, 'NEW!', 1)
-
+    print('got emails')
     asins = [email['ASIN'] for email in emails ]
+    print(f'asins: {asins}')
+    print('getting keepa prices')
     keepa_prices = get_keepa_prices(asins)
+    print('got keepa prices')
     filtered_emails = []
-
+    print('scraping ebay pages')
     for email in emails:
         link = parse_html(email['Html'])
         email['ebay_link'] = link
         del email['Html']
 
         if link:
+            print(f'scraping ebay page for {link}')
             lowest_pre_owned, lowest_new = scrape_ebay_page(link)
             email['Ebay: Lowest Pre-Owned Price'] = lowest_pre_owned
             email['Ebay: Lowest New Price'] = lowest_new
@@ -273,9 +279,15 @@ def lambda_handler(event,context):
            (lowest_new and keepa_price.get('Keepa New Price') and lowest_new <= keepa_price.get('Max New Price')):
             filtered_emails.append(email)
 
-
-    save_to_csv(filtered_emails)
+    # only do this locally
+    if not event: save_to_csv(filtered_emails)
+    print('sending telegram message')
     send_telegram_messages(filtered_emails)
+
+    return {
+        'status': 200,
+        'message': 'Ebay messages checked and sent'
+    }
 
 if __name__ == '__main__':
     lambda_handler({},{})
