@@ -48,7 +48,7 @@ jobs:
           use-installer: true
       
     - name: SAM build us-east-1
-      run: sam build --template '../backend/template.yml'
+      run: sam build --template './backend/template.yml'
     
     - name: SAM Package
       run: sam package --template-file .aws-sam/build/template.yaml --s3-bucket amazon-fba-backend --output-template-file sam-packaged.yaml
