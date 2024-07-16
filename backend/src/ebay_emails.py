@@ -11,7 +11,6 @@ from googleapiclient.discovery import build
 from bs4 import BeautifulSoup
 import requests
 import keepa
-from lambda_decorators import load_json_body
 # from telegram import ParseMode
 from dotenv import load_dotenv
 load_dotenv()
@@ -167,7 +166,6 @@ def delete_telegram_message(chat_id, message_id):
     response = requests.post(url, data=payload)
     return response.json()
 
-@load_json_body
 def lambda_handler(event, context):
     print(event)
     body = event['body']

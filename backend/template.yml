@@ -23,6 +23,31 @@ Conditions:
   IsProd: !Equals [ !Ref STAGE, prd ]
 
 Resources:
+  MainHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      FunctionName: !Sub "telegram_main_handler_${STAGE}"
+      Handler: telegram_handler.lambda_handler
+      Runtime: python3.11
+      Timeout: 60
+      Environment:
+        Variables:
+          telegram_token: !Ref TELEGRAMTOKEN
+          gather_data_function: !GetAtt GatherData.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /telegram
+            Method: post
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource: !GetAtt GatherData.Arn
+
   GatherData:
     Type: AWS::Serverless::Function
     Properties:
@@ -39,12 +64,6 @@ Resources:
           SQS_QUEUE_URL: !GetAtt SQSQueue.QueueUrl
       Architectures: 
         - x86_64
-      Events:
-        GatherDataApi:
-          Type: Api
-          Properties:
-            Path: /ebay
-            Method: post
       Policies:
         - Statement:
             Effect: Allow
@@ -99,23 +118,4 @@ Resources:
     Properties:
       QueueName: !Sub "ebay_fba_queue_${STAGE}"
       VisibilityTimeout: 60
-
-
-  DeleteMessageHandler:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      FunctionName: !Sub "telegram_delete_handler_${STAGE}"
-      Handler: delete_ebay_message.lambda_handler
-      Runtime: python3.11
-      Timeout: 60
-      Environment:
-        Variables:
-          telegram_token: !Ref TELEGRAMTOKEN
-      Events:
-        ApiEvent:
-          Type: Api
-          Properties:
-            Path: /delete_ebay
-            Method: post
 
