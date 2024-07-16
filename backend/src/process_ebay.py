@@ -90,17 +90,18 @@ def lambda_handler(event, context):
                     table._rows[2][2] = f"${email['Keepa New Price']}"
                     table._rows[3][2] = f"{email['Keepa New Is FBA']}"
 
-            message = f"""
-            <b>Title:</b> {email['Title']}
-            <pre>{table}</pre>
-            """
-            inline_buttons = [
-                [
-                    {"text": "View on eBay", "url": email['ebay_link']},
-                    {"text": "View on Amazon", "url": email['amz_link']}
+            if new_col or used_col:
+                message = f"""
+                <b>Title:</b> {email['Title']}
+                <pre>{table}</pre>
+                """
+                inline_buttons = [
+                    [
+                        {"text": "View on eBay", "url": email['ebay_link']},
+                        {"text": "View on Amazon", "url": email['amz_link']}
+                    ]
                 ]
-            ]
-            send_telegram_message(message, inline_buttons)
+                send_telegram_message(message, inline_buttons)
             sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=record['receiptHandle'])
 
     return {
