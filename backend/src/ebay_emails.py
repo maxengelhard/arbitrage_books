@@ -178,6 +178,7 @@ def lambda_handler(event, context):
 
         if text == '/ebay':
             start_response = send_telegram_message(chat_id, "The eBay data gathering process has started.")
+            print(start_response)
             start_message_id = start_response['result']['message_id']
 
             creds = authenticate_gmail()
