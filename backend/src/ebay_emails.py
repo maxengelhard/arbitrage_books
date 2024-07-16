@@ -148,13 +148,13 @@ def get_keepa_prices(asins):
 
 def send_telegram_message(chat_id, text):
     token = os.getenv('telegram_token')
+    print(token)
     url = f'https://api.telegram.org/bot{token}/sendMessage'
     payload = {
-        'chat_id': str(chat_id),
+        'chat_id': chat_id,
         'text': text
     }
     response = requests.post(url, data=payload)
-    print(response.text)
     return response.json()
 
 def delete_telegram_message(chat_id, message_id):
