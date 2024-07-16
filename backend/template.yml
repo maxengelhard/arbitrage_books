@@ -93,3 +93,23 @@ Resources:
     Properties:
       QueueName: !Sub "ebay_fba_queue_${STAGE}"
       VisibilityTimeout: 60
+
+
+  DeleteMessageHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/telegram/
+      FunctionName: !Sub "telegram_delete_handler_${STAGE}"
+      Handler: delete_ebay_message.lambda_handler
+      Runtime: python3.11
+      Timeout: 60
+      Environment:
+        Variables:
+          telegram_token: !Ref TELEGRAMTOKEN
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /telegram
+            Method: post
+

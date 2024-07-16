@@ -99,6 +99,9 @@ def lambda_handler(event, context):
                     [
                         {"text": "View on eBay", "url": email['ebay_link']},
                         {"text": "View on Amazon", "url": email['amz_link']}
+                    ],
+                    [
+                        {"text": "Delete", "callback_data": f"delete_{email['ASIN']}"}
                     ]
                 ]
                 send_telegram_message(message, inline_buttons)
