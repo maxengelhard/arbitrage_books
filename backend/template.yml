@@ -73,7 +73,7 @@ Resources:
         ProcessEbayQueue:
           Type: SQS
           Properties:
-            Queue: !GetAtt SQSQueue.QueueArn
+            Queue: !GetAtt SQSQueue.QueueUrl
       Policies:
         - Statement:
             Effect: Allow
