@@ -2,7 +2,7 @@ name: Upload functions
 
 on:
   push:
-    branches: [ main  , dev ]
+    branches: [ master  , dev ]
 
 permissions:
   id-token: write # This is required for requesting the JWT
