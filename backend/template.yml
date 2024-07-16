@@ -52,6 +52,7 @@ Resources:
             Resource: 
               - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
               - !Sub "arn:aws:s3:::${S3BUCKET}"
+              - !Sub "arn:aws:s3:::${S3BUCKET}/*"
               - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:*"
 
   ProcessEbay:
