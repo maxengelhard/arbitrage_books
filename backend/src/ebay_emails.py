@@ -170,8 +170,7 @@ def delete_telegram_message(chat_id, message_id):
 @load_json_body
 def lambda_handler(event, context):
     print(event)
-    body = event['body']
-    chat_id = body['chat_id']
+    chat_id = event['chat_id']
     
     start_response = send_telegram_message(chat_id, "The eBay data gathering process has started.")
     print(start_response)

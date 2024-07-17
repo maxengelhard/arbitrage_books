@@ -55,8 +55,7 @@ def send_telegram_message(message, inline_buttons, chat_id):
 @load_json_body
 def lambda_handler(event, context):
     print(event)
-    body = event['body']
-    email = body
+    email = event
     link = email['ebay_link']
     chat_id = email['chat_id']
     if link:
