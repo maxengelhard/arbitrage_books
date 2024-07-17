@@ -42,7 +42,20 @@ tracking_objects = [
                 "domain": 1,  # Amazon US
                 "csvType": 1,  # Used price type
                 "isDrop": True  # Track price drops
-            }
+            },
+            {
+                "thresholdValue": 20000,  # Desired used price in cents (i.e., $20.00)
+                "domain": 1,  # Amazon US
+                "csvType": 28,  # Ebay new plus shipping
+                "isDrop": True  # Track price drops
+            },
+            {
+                "thresholdValue": 20000,  # Desired used price in cents (i.e., $20.00)
+                "domain": 1,  # Amazon US
+                "csvType": 29,  # Ebay Used plus shipping
+                "isDrop": True  # Track price drops
+            },
+
         ],
         "notificationType": [False, False, False, False, False, True, False],  # Only notify via API
         "individualNotificationInterval": -1  # Use default notification timer
