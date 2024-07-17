@@ -14,8 +14,6 @@ Parameters:
     Type: String
   TELEGRAMTOKEN:
     Type: String
-  TELEGRAMCHATID:
-    Type: String
   S3BUCKET:
     Type: String
 
