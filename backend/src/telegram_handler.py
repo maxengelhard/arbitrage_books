@@ -45,11 +45,51 @@ def handle_delete_callback(callback_query):
         print(f"Error handling delete callback: {e}")
         return None
 
-def handle_keepa_message():
+def format_keepa_message(data):
     try:
-        print('handling keepa message')
+        asin = data.get('asin')
+        tracking_list_name = data.get('trackingListName', 'N/A')
+        meta_data = data.get('metaData', 'N/A')
+        is_active = data.get('isActive', False)
+        is_active_str = 'Active' if is_active else 'Inactive'
+        threshold_values = data.get('thresholdValues', [])
+        notify_if = data.get('notifyIf', [])
+
+        message = f"<b>Keepa Tracking Notification</b>\n"
+        message += f"<b>ASIN:</b> {asin}\n"
+        message += f"<b>Tracking List:</b> {tracking_list_name}\n"
+        message += f"<b>Metadata:</b> {meta_data}\n"
+        message += f"<b>Status:</b> {is_active_str}\n"
+
+        if threshold_values:
+            message += f"\n<b>Threshold Values:</b>\n"
+            for value in threshold_values:
+                domain = value.get('domain', 'N/A')
+                csv_type = value.get('csvType', 'N/A')
+                is_drop = value.get('isDrop', False)
+                direction = 'Drop' if is_drop else 'Increase'
+                message += f" - Domain: {domain}, Type: {csv_type}, Direction: {direction}\n"
+
+        if notify_if:
+            message += f"\n<b>Notification If:</b>\n"
+            for notify in notify_if:
+                domain = notify.get('domain', 'N/A')
+                csv_type = notify.get('csvType', 'N/A')
+                notify_if_type = notify.get('notifyIfType', 'N/A')
+                notify_type_str = 'Out of Stock' if notify_if_type == 0 else 'Back in Stock'
+                message += f" - Domain: {domain}, Type: {csv_type}, Notify If: {notify_type_str}\n"
+
+        return message
     except Exception as e:
-        print(f"Error handling keepa message: {e}")
+        print(f"Error formatting Keepa message: {e}")
+        return "Error formatting Keepa notification."
+
+def handle_keepa_message(data, chat_id):
+    try:
+        message = format_keepa_message(data)
+        send_telegram_message(chat_id, message)
+    except Exception as e:
+        print(f"Error handling Keepa message: {e}")
 
 
 @load_json_body
@@ -95,6 +135,10 @@ def lambda_handler(event, context):
                     'statusCode': 200,
                     'body': json.dumps(delete_response)
                 }
+
+        elif 'asin' in body: # keepa notification
+            chat_id = os.getenv('chat_id')  # Ensure you have this environment variable set
+            handle_keepa_message(body, chat_id)
 
         return {
             'statusCode': 200,

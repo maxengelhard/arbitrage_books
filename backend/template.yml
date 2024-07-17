@@ -14,6 +14,8 @@ Parameters:
     Type: String
   TELEGRAMTOKEN:
     Type: String
+  CHATID:
+    Type: String
   S3BUCKET:
     Type: String
 
@@ -32,6 +34,7 @@ Resources:
       Environment:
         Variables:
           telegram_token: !Ref TELEGRAMTOKEN
+          chat_id: !Ref CHATID
           gather_data_function: !GetAtt GatherData.Arn
       Events:
         ApiEvent:
