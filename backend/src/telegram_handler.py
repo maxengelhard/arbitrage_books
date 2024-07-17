@@ -44,9 +44,6 @@ def lambda_handler(event, context):
         text = message.get('text', '')
 
         if text == '/ebay':
-            start_response = send_telegram_message(chat_id, "The eBay data gathering process has started.")
-            start_message_id = start_response['result']['message_id']
-
             try:
                 client = boto3.client('lambda')
                 function_name = os.getenv('gather_data_function')
