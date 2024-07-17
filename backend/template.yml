@@ -21,30 +21,30 @@ Conditions:
   IsProd: !Equals [ !Ref STAGE, prd ]
 
 Resources:
-  MainHandler:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      FunctionName: !Sub "telegram_main_handler_${STAGE}"
-      Handler: telegram_handler.lambda_handler
-      Runtime: python3.11
-      Timeout: 60
-      Environment:
-        Variables:
-          telegram_token: !Ref TELEGRAMTOKEN
-          gather_data_function: !GetAtt GatherData.Arn
-      Events:
-        ApiEvent:
-          Type: Api
-          Properties:
-            Path: /telegram
-            Method: post
-      Policies:
-        - Statement:
-            Effect: Allow
-            Action:
-              - lambda:InvokeFunction
-            Resource: !GetAtt GatherData.Arn
+  # MainHandler:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: src/
+  #     FunctionName: !Sub "telegram_main_handler_${STAGE}"
+  #     Handler: telegram_handler.lambda_handler
+  #     Runtime: python3.11
+  #     Timeout: 60
+  #     Environment:
+  #       Variables:
+  #         telegram_token: !Ref TELEGRAMTOKEN
+  #         gather_data_function: !GetAtt GatherData.Arn
+  #     Events:
+  #       ApiEvent:
+  #         Type: Api
+  #         Properties:
+  #           Path: /telegram
+  #           Method: post
+  #     Policies:
+  #       - Statement:
+  #           Effect: Allow
+  #           Action:
+  #             - lambda:InvokeFunction
+  #           Resource: !GetAtt GatherData.Arn
 
   GatherData:
     Type: AWS::Serverless::Function
