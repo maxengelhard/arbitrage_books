@@ -181,8 +181,8 @@ def lambda_handler(event, context):
     asins = [email['ASIN'] for email in emails]
     keepa_prices = get_keepa_prices(asins)
     
-    sqs = boto3.client('sqs')
-    queue_url = os.getenv('SQS_QUEUE_URL')
+    client = boto3.client('lambda')
+    function_name = os.getenv('process_ebay_function')
     
     for email in emails:
         link = parse_html(email['Html'])
@@ -193,14 +193,17 @@ def lambda_handler(event, context):
             keepa_price = keepa_prices.get(email['ASIN'], {})
             email.update(keepa_price)
             email['chat_id'] = chat_id
-            sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(email))
+            client.invoke(
+                FunctionName=function_name,
+                InvocationType='Event',
+                Payload=json.dumps(email)
+            )
     
     delete_telegram_message(chat_id, start_message_id)
 
     return {
-        'status': 200,
-        'message': 'Emails processed and messages sent to SQS'
+        'statusCode': 200,
+        'body': json.dumps({'message': 'Emails processed and function invoked'})
     }
-
 if __name__ == '__main__':
     lambda_handler({},{})

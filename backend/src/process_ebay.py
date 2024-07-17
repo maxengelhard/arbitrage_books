@@ -3,7 +3,6 @@ import json
 import requests
 from bs4 import BeautifulSoup
 import prettytable as pt
-import boto3
 
 def scrape_ebay_page(url):
     response = requests.get(url)
@@ -38,7 +37,7 @@ def scrape_ebay_page(url):
 
     return lowest_pre_owned, lowest_new
 
-def send_telegram_message(message, inline_buttons,chat_id):
+def send_telegram_message(message, inline_buttons, chat_id):
     token = os.getenv('telegram_token')
     url = f'https://api.telegram.org/bot{token}/sendMessage'
     payload = {
@@ -53,61 +52,59 @@ def send_telegram_message(message, inline_buttons,chat_id):
     return response.json()
 
 def lambda_handler(event, context):
-    sqs = boto3.client('sqs')
-    queue_url = os.getenv('SQS_QUEUE_URL')
+    email = event
+    link = email['ebay_link']
+    chat_id = email['chat_id']
+    if link:
+        lowest_pre_owned, lowest_new = scrape_ebay_page(link)
+        email['Ebay: Lowest Pre-Owned Price'] = lowest_pre_owned
+        email['Ebay: Lowest New Price'] = lowest_new
 
-    for record in event['Records']:
-        email = json.loads(record['body'])
-        link = email['ebay_link']
-        chat_id = email['chat_id']
-        if link:
-            lowest_pre_owned, lowest_new = scrape_ebay_page(link)
-            email['Ebay: Lowest Pre-Owned Price'] = lowest_pre_owned
-            email['Ebay: Lowest New Price'] = lowest_new
+        used_col = email['Ebay: Lowest Pre-Owned Price'] is not None and email['Max Used Price'] is not None and email['Ebay: Lowest Pre-Owned Price'] <= email['Max Used Price']
+        new_col = email['Ebay: Lowest New Price'] is not None and email['Max New Price'] is not None and email['Ebay: Lowest New Price'] <= email['Max New Price']
 
-            used_col = email['Ebay: Lowest Pre-Owned Price'] is not None and email['Max Used Price'] is not None and email['Ebay: Lowest Pre-Owned Price'] <= email['Max Used Price']
-            new_col = email['Ebay: Lowest New Price'] is not None and email['Max New Price'] is not None and email['Ebay: Lowest New Price'] <= email['Max New Price']
+        table = pt.PrettyTable()
+        table.align = 'l'
+        table.field_names = ['Item', 'Used', 'New']
 
-            table = pt.PrettyTable()
-            table.align = 'l'
-            table.field_names = ['Item', 'Used', 'New']
+        if used_col:
+            table.add_row(['eBay', f"${email['Ebay: Lowest Pre-Owned Price']}", ''])
+            table.add_row(['Max Price', f"${email['Max Used Price']}", ''])
+            table.add_row(['Amazon', f"${email['Keepa Used Price']}", ''])
+            table.add_row(['FBA', f"{email['Keepa Used Is FBA']}", ''])
 
-            if used_col:
-                table.add_row(['eBay', f"${email['Ebay: Lowest Pre-Owned Price']}", ''])
-                table.add_row(['Max Price', f"${email['Max Used Price']}", ''])
-                table.add_row(['Amazon', f"${email['Keepa Used Price']}", ''])
-                table.add_row(['FBA', f"{email['Keepa Used Is FBA']}", ''])
+        if new_col:
+            if not used_col:
+                table.add_row(['eBay', '', f"${email['Ebay: Lowest New Price']}"])
+                table.add_row(['Max Price', '', f"${email['Max New Price']}"])
+                table.add_row(['Amazon', '', f"${email['Keepa New Price']}"])
+                table.add_row(['FBA', '', f"{email['Keepa New Is FBA']}"])
+            else:
+                table._rows[0][2] = f"${email['Ebay: Lowest New Price']}"
+                table._rows[1][2] = f"${email['Max New Price']}"
+                table._rows[2][2] = f"${email['Keepa New Price']}"
+                table._rows[3][2] = f"{email['Keepa New Is FBA']}"
 
-            if new_col:
-                if not used_col:
-                    table.add_row(['eBay', '', f"${email['Ebay: Lowest New Price']}"])
-                    table.add_row(['Max Price', '', f"${email['Max New Price']}"])
-                    table.add_row(['Amazon', '', f"${email['Keepa New Price']}"])
-                    table.add_row(['FBA', '', f"{email['Keepa New Is FBA']}"])
-                else:
-                    table._rows[0][2] = f"${email['Ebay: Lowest New Price']}"
-                    table._rows[1][2] = f"${email['Max New Price']}"
-                    table._rows[2][2] = f"${email['Keepa New Price']}"
-                    table._rows[3][2] = f"{email['Keepa New Is FBA']}"
-
-            if new_col or used_col:
-                message = f"""
-                <b>Title:</b> {email['Title']}
-                <pre>{table}</pre>
-                """
-                inline_buttons = [
-                    [
-                        {"text": "View on eBay", "url": email['ebay_link']},
-                        {"text": "View on Amazon", "url": email['amz_link']}
-                    ],
-                    [
-                        {"text": "Delete", "callback_data": f"delete_{email['ASIN']}"}
-                    ]
+        if new_col or used_col:
+            message = f"""
+            <b>Title:</b> {email['Title']}
+            <pre>{table}</pre>
+            """
+            inline_buttons = [
+                [
+                    {"text": "View on eBay", "url": email['ebay_link']},
+                    {"text": "View on Amazon", "url": email['amz_link']}
+                ],
+                [
+                    {"text": "Delete", "callback_data": f"delete_{email['ASIN']}"}
                 ]
-                send_telegram_message(message, inline_buttons,chat_id)
-            sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=record['receiptHandle'])
+            ]
+            send_telegram_message(message, inline_buttons, chat_id)
 
     return {
-        'status': 200,
-        'message': 'eBay pages scraped and Telegram messages sent'
+        'statusCode': 200,
+        'body': json.dumps({'message': 'eBay page scraped and Telegram message sent'})
     }
+
+if __name__ == '__main__':
+    lambda_handler({}, {})

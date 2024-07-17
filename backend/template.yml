@@ -61,7 +61,7 @@ Resources:
           keepa_api: !Ref KEEPAAPI
           secrets_bucket: !Ref S3BUCKET
           telegram_token: !Ref TELEGRAMTOKEN
-          SQS_QUEUE_URL: !GetAtt SQSQueue.QueueUrl
+          process_ebay_function: !GetAtt ProcessEbay.Arn
       Architectures: 
         - x86_64
       Policies:
@@ -74,12 +74,12 @@ Resources:
               - s3:ListBucket
               - s3:GetObject
               - s3:PutObject
-              - sqs:SendMessage
+              - lambda:InvokeFunction
             Resource: 
               - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
               - !Sub "arn:aws:s3:::${S3BUCKET}"
               - !Sub "arn:aws:s3:::${S3BUCKET}/*"
-              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:*"
+              - !GetAtt ProcessEbay.Arn
 
   ProcessEbay:
     Type: AWS::Serverless::Function
@@ -92,14 +92,8 @@ Resources:
       Environment:
         Variables:
           telegram_token: !Ref TELEGRAMTOKEN
-          SQS_QUEUE_URL: !GetAtt SQSQueue.QueueUrl
       Architectures: 
         - x86_64
-      Events:
-        ProcessEbayQueue:
-          Type: SQS
-          Properties:
-            Queue: !GetAtt SQSQueue.Arn
       Policies:
         - Statement:
             Effect: Allow
@@ -107,15 +101,5 @@ Resources:
               - logs:CreateLogGroup
               - logs:CreateLogStream
               - logs:PutLogEvents
-              - sqs:ReceiveMessage
-              - sqs:DeleteMessage
             Resource: 
               - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
-              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:*"
-
-  SQSQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: !Sub "ebay_fba_queue_${STAGE}"
-      VisibilityTimeout: 60
-

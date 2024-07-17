@@ -36,15 +36,8 @@ def handle_delete_callback(callback_query):
 @load_json_body
 def lambda_handler(event, context):
     print(event)
-    body = event['body']
+    body = json.loads(event['body'])
 
-    # Ensure body is not None
-    if body is None:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'Empty body received'})
-        }
-    
     if 'message' in body:
         message = body['message']
         chat_id = message['chat']['id']
@@ -53,10 +46,6 @@ def lambda_handler(event, context):
         if text == '/ebay':
             start_response = send_telegram_message(chat_id, "The eBay data gathering process has started.")
             start_message_id = start_response['result']['message_id']
-
-            return {
-               'stopping' 
-            }
 
             try:
                 client = boto3.client('lambda')
@@ -77,9 +66,7 @@ def lambda_handler(event, context):
                 if response['StatusCode'] != 202:
                     raise Exception(f"Failed to invoke gather_data_function: {response}")
 
-                # The completion message will be handled in the gather_data_function
             except Exception as e:
-                # Log the exception and notify via Telegram
                 print(f"Error invoking gather_data_function: {e}")
                 send_telegram_message(chat_id, "An error occurred while starting the eBay data gathering process.")
     
