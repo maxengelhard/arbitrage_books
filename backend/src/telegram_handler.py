@@ -37,6 +37,13 @@ def handle_delete_callback(callback_query):
 def lambda_handler(event, context):
     print(event)
     body = event['body']
+
+    # Ensure body is not None
+    if body is None:
+        return {
+            'statusCode': 400,
+            'body': json.dumps({'error': 'Empty body received'})
+        }
     
     if 'message' in body:
         message = body['message']
@@ -47,26 +54,35 @@ def lambda_handler(event, context):
             start_response = send_telegram_message(chat_id, "The eBay data gathering process has started.")
             start_message_id = start_response['result']['message_id']
 
+            return {
+               'stopping' 
+            }
+
             try:
                 client = boto3.client('lambda')
                 function_name = os.getenv('gather_data_function')
+
+                # Create the payload to send to the gather_data_function
+                payload = {
+                    'chat_id': chat_id,
+                }
                 
                 response = client.invoke(
                     FunctionName=function_name,
-                    InvocationType='Event'  # Asynchronous invocation
+                    InvocationType='Event',  # Asynchronous invocation
+                    Payload=json.dumps(payload)  # Sending event data
                 )
 
                 # Check if invocation was successful
                 if response['StatusCode'] != 202:
                     raise Exception(f"Failed to invoke gather_data_function: {response}")
 
-                delete_telegram_message(chat_id, start_message_id)
-                send_telegram_message(chat_id, "The eBay data gathering process is complete.")
+                # The completion message will be handled in the gather_data_function
             except Exception as e:
                 # Log the exception and notify via Telegram
                 print(f"Error invoking gather_data_function: {e}")
                 send_telegram_message(chat_id, "An error occurred while starting the eBay data gathering process.")
-
+    
     elif 'callback_query' in body:
         callback_query = body['callback_query']
         if 'data' in callback_query and callback_query['data'].startswith('delete_'):
@@ -77,6 +93,6 @@ def lambda_handler(event, context):
             }
 
     return {
-        'statusCode': 400,
-        'body': json.dumps({'error': 'Invalid request'})
+        'statusCode': 200,
+        'body': json.dumps({'message': 'No action taken'})
     }

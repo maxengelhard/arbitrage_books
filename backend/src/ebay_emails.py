@@ -169,39 +169,33 @@ def delete_telegram_message(chat_id, message_id):
 def lambda_handler(event, context):
     print(event)
     body = event['body']
+    chat_id = body['chat_id']
     
-    if 'message' in body:
-        message = body['message']
-        chat_id = message['chat']['id']
-        print('chat_id',chat_id)
-        text = message.get('text', '')
+    start_response = send_telegram_message(chat_id, "The eBay data gathering process has started.")
+    print(start_response)
+    start_message_id = start_response['result']['message_id']
 
-        if text == '/ebay':
-            start_response = send_telegram_message(chat_id, "The eBay data gathering process has started.")
-            print(start_response)
-            start_message_id = start_response['result']['message_id']
+    creds = authenticate_gmail()
+    service = build('gmail', 'v1', credentials=creds)
+    emails = get_emails_with_subject(service, 'NEW!', 1)
+    asins = [email['ASIN'] for email in emails]
+    keepa_prices = get_keepa_prices(asins)
+    
+    sqs = boto3.client('sqs')
+    queue_url = os.getenv('SQS_QUEUE_URL')
+    
+    for email in emails:
+        link = parse_html(email['Html'])
+        email['ebay_link'] = link
+        del email['Html']
 
-            creds = authenticate_gmail()
-            service = build('gmail', 'v1', credentials=creds)
-            emails = get_emails_with_subject(service, 'NEW!', 1)
-            asins = [email['ASIN'] for email in emails]
-            keepa_prices = get_keepa_prices(asins)
-            
-            sqs = boto3.client('sqs')
-            queue_url = os.getenv('SQS_QUEUE_URL')
-            
-            for email in emails:
-                link = parse_html(email['Html'])
-                email['ebay_link'] = link
-                del email['Html']
-
-                if link:
-                    keepa_price = keepa_prices.get(email['ASIN'], {})
-                    email.update(keepa_price)
-                    email['chat_id'] = chat_id
-                    sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(email))
-            
-            delete_telegram_message(chat_id, start_message_id)
+        if link:
+            keepa_price = keepa_prices.get(email['ASIN'], {})
+            email.update(keepa_price)
+            email['chat_id'] = chat_id
+            sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(email))
+    
+    delete_telegram_message(chat_id, start_message_id)
 
     return {
         'status': 200,
