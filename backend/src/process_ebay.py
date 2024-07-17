@@ -3,6 +3,7 @@ import json
 import requests
 from bs4 import BeautifulSoup
 import prettytable as pt
+from lambda_decorators import load_json_body
 
 def scrape_ebay_page(url):
     response = requests.get(url)
@@ -51,6 +52,7 @@ def send_telegram_message(message, inline_buttons, chat_id):
     response = requests.post(url, data=payload)
     return response.json()
 
+@load_json_body
 def lambda_handler(event, context):
     print(event)
     body = event['body']

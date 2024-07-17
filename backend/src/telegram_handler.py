@@ -36,7 +36,7 @@ def handle_delete_callback(callback_query):
 @load_json_body
 def lambda_handler(event, context):
     print(event)
-    body = json.loads(event['body'])
+    body = event['body']
 
     if 'message' in body:
         message = body['message']

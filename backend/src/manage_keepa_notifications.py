@@ -29,7 +29,7 @@ tracking_objects = [
         "desiredPricesInMainCurrency": True,
         "mainDomainId": 1,  # Amazon US
         "updateInterval": 24,  # Update every 24 hours
-        "metaData": "Tracking new and used prices",
+        "metaData": "Tracking new and used prices on amazon and ebay",
         "thresholdValues": [
             {
                 "thresholdValue": 10000,  # Desired new price in cents (i.e., $100.00)
