@@ -151,8 +151,8 @@ def get_keepa_prices(asins):
             new_price = float(buybox_new_price + buybox_new_shipping)/100 if buybox_new_price else None
             used_price = float(buybox_used_price + buybox_used_shipping)/100 if buybox_used_price else None
 
-            max_new_price = round(new_price * .6,2) if new_price else None
-            max_used_price = round(used_price * .6,2) if used_price else None
+            max_new_price = round(new_price * .5,2) if new_price else None
+            max_used_price = round(used_price * .5,2) if used_price else None
             
             prices[asin] = {
                 'Title': title,
