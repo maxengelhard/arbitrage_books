@@ -4,10 +4,12 @@ import pandas as pd
 from dotenv import load_dotenv
 load_dotenv()
 import os
+from amazon_seller_check import SellerClient
 
-async def main():
+def main():
     key = os.getenv('keepa_api')
-    api = await keepa.AsyncKeepa().create(key)
+    api = keepa.Keepa(key)
+    seller_client = SellerClient()
 
     current_product_asin = None
     current_sales_gte = 25000
@@ -34,21 +36,25 @@ async def main():
             'offerCountFBA_gte': 5,
             'sort': ["current_SALES", "asc"],
         }
-        products = await api.product_finder(product_parms=product_params, domain='US')
+        products = api.product_finder(product_parms=product_params, domain='US')
         if not products:
             break
         last_product_asin = products[-1]
         if last_product_asin == current_product_asin:
             break
         current_product_asin = last_product_asin
-        last_product= await api.query(items=last_product_asin,days=1,stats=1)
+        last_product= api.query(items=last_product_asin,days=1,stats=1)
         current_sales_gte = last_product[0]['stats']['current'][3]
         
-        print(current_sales_gte)
+        sellable_products = []
+        for product in products:
+            restrictions = seller_client.check_listing_restrictions(asin=product)
+            if restrictions and not restrictions.get('restrictions'):
+                sellable_products.append(product)
         
-        df = pd.DataFrame(products, columns=['ASIN'])
+        df = pd.DataFrame(sellable_products, columns=['ASIN'])
         df.to_csv(csv_file, mode='a', header=False, index=False)
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
