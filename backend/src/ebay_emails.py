@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 import requests
 import keepa
 from lambda_decorators import load_json_body
+from amazon_seller_check import SellerClient
 # from telegram import ParseMode
 from dotenv import load_dotenv
 load_dotenv()
@@ -207,15 +208,25 @@ def lambda_handler(event, context):
         if not creds:
             raise Exception("Failed to authenticate Gmail")
         
+        seller_client = SellerClient()
+        
         service = build('gmail', 'v1', credentials=creds)
         emails = get_emails_with_subject(service, 'NEW!', 1)
-        asins = [email['ASIN'] for email in emails]
+ 
+
+        sellable_products = []
+        for email in emails:
+            asin = email['ASIN']
+            restrictions = seller_client.check_listing_restrictions(asin=asin)
+            if restrictions and not restrictions.get('restrictions'):
+                sellable_products.append(email)
         
+        asins = [email['ASIN'] for email in sellable_products]
         keepa_prices = get_keepa_prices(asins)
         client = boto3.client('lambda')
         function_name = os.getenv('process_ebay_function')
         
-        for email in emails:
+        for email in sellable_products:
             link = parse_html(email['Html'])
             email['ebay_link'] = link
             del email['Html']
