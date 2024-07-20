@@ -9,11 +9,11 @@ class SellerClient:
     class ConditionType(Enum):
         NEW_NEW = "new_new"
 
-    def __init__(self) -> None:
-        self.client_id = os.getenv('client_id')
-        self.client_secret = os.getenv('client_secret')
-        self.refresh_token = os.getenv('refresh_token')
-        self.seller_id = os.getenv('merchant_token')
+    def __init__(self,client_id,client_secret,refresh_token,seller_id) -> None:
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.refresh_token = refresh_token
+        self.seller_id = seller_id
         self.marketplace_ids = 'ATVPDKIKX0DER'
         self.access_token = self.get_access_token()
         self.condition = self.ConditionType.NEW_NEW
@@ -60,7 +60,7 @@ class SellerClient:
 
 
 if __name__ == '__main__':
-   seller_client = SellerClient()
+   seller_client = SellerClient(client_id=os.getenv('client_id'),client_secret=os.getenv('client_secret'),refresh_token=os.getenv('refresh_token'),seller_id=os.getenv('merchant_token'))
    restritions = seller_client.check_listing_restrictions(asin='032379341X')
    print(restritions)
 

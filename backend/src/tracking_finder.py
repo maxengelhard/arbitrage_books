@@ -9,7 +9,7 @@ from amazon_seller_check import SellerClient
 def main():
     key = os.getenv('keepa_api')
     api = keepa.Keepa(key)
-    seller_client = SellerClient()
+    seller_client = SellerClient(client_id=os.getenv('client_id'),client_secret=os.getenv('client_secret'),refresh_token=os.getenv('refresh_token'),seller_id=os.getenv('merchant_token'))
 
     current_product_asin = None
     current_sales_gte = 25000
@@ -24,18 +24,33 @@ def main():
         # for cat_id in categories:
         #     print(cat_id, categories[cat_id]['name'])
         # return categories
-        product_params = {
-            'rootCategory': 283155, # for books
-            'isAdultProduct': False, # do not want this
-            'current_NEW_FBA_gte': 6000,# new prices greater than $60
-            'avg90_SALES_gte' : 25000, # sales rank greater than 25000
-            'avg90_SALES_lte': 150000, # sales rank lower than 150000
-            'current_SALES_gte': current_sales_gte,
-            'current_SALES_lte' : max_sales_lte,
-            'stockAmazon_lte' : 1,
-            'offerCountFBA_gte': 5,
-            'sort': ["current_SALES", "asc"],
-        }
+        product_params=  {
+        "avg90_SALES_gte": 10000,
+        "avg90_SALES_lte": 150000,
+        "current_BUY_BOX_SHIPPING_gte": 5000,
+        "buyBoxStatsAmazon30_gte": 0,
+        "buyBoxStatsAmazon30_lte": 50,
+        "current_AMAZON_gte": -1,
+        "current_AMAZON_lte": -1,
+        "current_NEW_gte": 5000,
+        "current_NEW_FBA_gte": 5000,
+        "current_COUNT_NEW_gte": 2,
+        "rootCategory": 283155,
+        "sort": [
+            [
+                "current_SALES",
+                "asc"
+            ]
+        ],
+        "lastOffersUpdate_gte": 7122131,
+        # "productType": [
+        #     0,
+        #     1,
+        #     2
+        # ],
+        # "perPage": 50,
+        # "page": 0
+        }   
         products = api.product_finder(product_parms=product_params, domain='US')
         if not products:
             break

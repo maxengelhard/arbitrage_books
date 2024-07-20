@@ -18,6 +18,15 @@ Parameters:
     Type: String
   S3BUCKET:
     Type: String
+  CLIENTID:
+    Type: String
+  CLIENTSECRET:
+    Type: String
+  REFRESHTOKEN:
+    Type: String
+  MERCHANTTOKEN:
+    Type: String
+  
 
 Conditions:
   IsProd: !Equals [ !Ref STAGE, prd ]
@@ -63,6 +72,10 @@ Resources:
           secrets_bucket: !Ref S3BUCKET
           telegram_token: !Ref TELEGRAMTOKEN
           process_ebay_function: !GetAtt ProcessEbay.Arn
+          client_id: !Ref CLIENTID
+          client_secret: !Ref CLIENTSECRET
+          refresh_token: !Ref REFRESHTOKEN
+          merchant_token: !Ref MERCHANTTOKEN
       Architectures: 
         - x86_64
       Policies:

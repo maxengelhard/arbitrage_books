@@ -208,7 +208,7 @@ def lambda_handler(event, context):
         if not creds:
             raise Exception("Failed to authenticate Gmail")
         
-        seller_client = SellerClient()
+        seller_client = SellerClient(client_id=os.getenv('client_id'),client_secret=os.getenv('client_secret'),refresh_token=os.getenv('refresh_token'),seller_id=os.getenv('merchant_token'))
         
         service = build('gmail', 'v1', credentials=creds)
         emails = get_emails_with_subject(service, 'NEW!', 1)
