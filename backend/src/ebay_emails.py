@@ -30,6 +30,7 @@ def get_secret_from_s3(bucket_name, key):
         return None
 
 def upload_secret_to_s3(bucket_name, key, data):
+    print('trying upload')
     try:
         s3 = boto3.client('s3')
         s3.put_object(Bucket=bucket_name, Key=key, Body=data)
@@ -59,6 +60,7 @@ def authenticate_gmail():
                 with open('/tmp/token.json', 'w') as creds_file:
                     creds_file.write(credentials_json)
                 creds = Credentials.from_authorized_user_file('/tmp/token.json', SCOPES)
+                print(creds.valid)
                 if not creds.valid:
                     creds.refresh(Request())
                     upload_secret_to_s3(bucket_name, key, creds.to_json())
