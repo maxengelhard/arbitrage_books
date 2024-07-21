@@ -37,22 +37,30 @@ def upload_secret_to_s3(bucket_name, key, data):
     except Exception as e:
         print(f"Error uploading secret to S3: {e}")
 
-def authenticate_gmail():
+def get_authorization_url(flow):
+    auth_url, _ = flow.authorization_url(prompt='consent')
+    return auth_url
+
+def authenticate_gmail(chat_id):
     try: 
         creds = None
         if os.path.exists('token.json'):
             creds = Credentials.from_authorized_user_file('token.json', SCOPES)
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-                with open('token.json', 'w') as token:
-                    token.write(creds.to_json())
-            elif os.path.exists('client_secret.json'):
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    'client_secret.json', SCOPES)
-                creds = flow.run_local_server(port=0)
-                with open('token.json', 'w') as token:
-                    token.write(creds.to_json())
+                try:
+                    creds.refresh(Request())
+                    with open('token.json', 'w') as token:
+                        token.write(creds.to_json())
+                except:
+                    print('trying without refresh')
+                    if os.path.exists('client_secret.json'):
+                        flow = InstalledAppFlow.from_client_secrets_file(
+                            'client_secret.json', SCOPES)
+                        print(flow)
+                        creds = flow.run_local_server(port=0)
+                        with open('token.json', 'w') as token:
+                            token.write(creds.to_json())
             else: # coming from lambda
                 bucket_name = os.getenv('secrets_bucket')
                 key = 'token.json'
@@ -61,11 +69,26 @@ def authenticate_gmail():
                     creds_file.write(credentials_json)
                 creds = Credentials.from_authorized_user_file('/tmp/token.json', SCOPES)
                 if not creds.valid:
-                    print('trying to upload')
-                    creds.refresh(Request())
-                    with open('/tmp/token.json', 'w') as creds_file:
-                            creds_file.write(creds.to_json())
-                    upload_secret_to_s3(bucket_name, key, creds.to_json())
+                    try:
+                        creds.refresh(Request())
+                        with open('/tmp/token.json', 'w') as creds_file:
+                                creds_file.write(creds.to_json())
+                        upload_secret_to_s3(bucket_name, key, creds.to_json())
+                    except:
+                        print('need to re auth gmail')
+                        client_key = 'client_secret.json'
+                        client_creds_json = get_secret_from_s3(bucket_name, client_key)
+                        with open('/tmp/client_secret.json', 'w') as client_secert:
+                            client_secert.write(client_creds_json)
+                        flow = InstalledAppFlow.from_client_secrets_file(
+                            '/tmp/client_secret.json', SCOPES)
+                        auth_url = get_authorization_url(flow)
+                        send_telegram_message(chat_id, f"Please authorize the app by visiting this URL: {auth_url}")
+                        creds = flow.run_local_server(port=0)
+                        with open('/tmp/token.json', 'w') as token:
+                            token.write(creds.to_json())
+                        upload_secret_to_s3(bucket_name, key, creds.to_json())
+
         return creds
     except Exception as e:
         print(f"Error authenticating Gmail: {e}")
@@ -208,7 +231,7 @@ def lambda_handler(event, context):
         print(event)
         chat_id = event['chat_id']
 
-        creds = authenticate_gmail()
+        creds = authenticate_gmail(chat_id=chat_id)
         if not creds:
             raise Exception("Failed to authenticate Gmail")
         
@@ -258,4 +281,4 @@ def lambda_handler(event, context):
             'body': json.dumps({'error': str(e)})
         }
 if __name__ == '__main__':
-    lambda_handler({},{})
+    authenticate_gmail(os.getenv('chat_id'))
