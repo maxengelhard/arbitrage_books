@@ -60,9 +60,11 @@ def authenticate_gmail():
                 with open('/tmp/token.json', 'w') as creds_file:
                     creds_file.write(credentials_json)
                 creds = Credentials.from_authorized_user_file('/tmp/token.json', SCOPES)
-                print(creds.valid)
                 if not creds.valid:
+                    print('trying to upload')
                     creds.refresh(Request())
+                    with open('/tmp/token.json', 'w') as creds_file:
+                            creds_file.write(creds.to_json())
                     upload_secret_to_s3(bucket_name, key, creds.to_json())
         return creds
     except Exception as e:
